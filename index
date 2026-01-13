@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Physarum Subway Designer - Enhanced Hubs</title>
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #controls {
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            color: white; font-family: sans-serif; background: rgba(0,0,0,0.8);
+            padding: 15px; border-radius: 8px; pointer-events: none;
+            border: 1px solid #444;
+        }
+        h3 { margin: 0 0 10px 0; color: #00ffaa; }
+        p { margin: 5px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <h3>Physarum Map Overlay</h3>
+    <p>Agents: 25,000</p>
+    <p>FPS: <span id="fps">0</span></p>
+    <p style="color: #ff0055;">● Station Markers Active</p>
+</div>
+<div id="map"></div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const STATIONS = [
+    { name: "Hauptbahnhof", lng: 13.3695, lat: 52.5250 },
+    { name: "Alexanderplatz", lng: 13.4119, lat: 52.5219 },
+    { name: "Zoo", lng: 13.3327, lat: 52.5073 },
+    { name: "Südkreuz", lng: 13.3647, lat: 52.4756 },
+    { name: "Ostkreuz", lng: 13.4693, lat: 52.5030 },
+    { name: "Gesundbrunnen", lng: 13.3883, lat: 52.5489 },
+    { name: "Potsdamer Platz", lng: 13.3762, lat: 52.5096 },
+    { name: "Westkreuz", lng: 13.2835, lat: 52.5010 }
+];
+
+// --- CONFIG ---
+const CONFIG = {
+    agentCount: 25000,
+    sensorDist: 10,     // slightly increased for stronger attraction
+    turnSpeed: 0.15,
+    decayRate: 0.94,
+    width: 128,
+    height: 96,
+    center: [13.388, 52.517],
+    geoScaleX: 0.0025,
+    geoScaleY: 0.002 * 0.8
+};
+
+// --- SIMULATION ---
+const agents = { x: new Float32Array(CONFIG.agentCount), y: new Float32Array(CONFIG.agentCount), angle: new Float32Array(CONFIG.agentCount) };
+const trailMap = new Float32Array(CONFIG.width * CONFIG.height);
+const displayBuffer = new Uint8Array(CONFIG.width * CONFIG.height * 4);
+
+// --- Initialize agents ---
+function initSimulation() {
+    for (let i = 0; i < CONFIG.agentCount; i++) {
+        agents.x[i] = Math.random() * CONFIG.width;
+        agents.y[i] = Math.random() * CONFIG.height;
+        agents.angle[i] = Math.random() * Math.PI * 2;
+    }
+}
+
+// --- Helper ---
+function index(x, y) {
+    let px = Math.floor(x + CONFIG.width) % CONFIG.width;
+    let py = Math.floor(y + CONFIG.height) % CONFIG.height;
+    return py * CONFIG.width + px;
+}
+
+function sense(i, angleOffset) {
+    const a = agents.angle[i] + angleOffset;
+    const x = agents.x[i] + Math.cos(a) * CONFIG.sensorDist;
+    const y = agents.y[i] + Math.sin(a) * CONFIG.sensorDist;
+    return trailMap[index(x, y)];
+}
+
+// --- MAPLIBRE MAP ---
+const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/positron',
+    center: CONFIG.center,
+    zoom: 11,
+    antialias: true
+});
+
+// --- STATION MARKERS ---
+function addStationMarkers(map) {
+    STATIONS.forEach(station => {
+        const el = document.createElement('div');
+        el.style.width = '10px';
+        el.style.height = '10px';
+        el.style.borderRadius = '50%';
+        el.style.background = '#ff0055';
+        el.style.border = '2px solid white';
+
+        const popup = new maplibregl.Popup({ offset: 12 })
+            .setText(station.name);
+
+        new maplibregl.Marker(el)
+            .setLngLat([station.lng, station.lat])
+            .setPopup(popup)
+            .addTo(map);
+    });
+}
+
+// --- STATION EMISSION (enhanced hubs) ---
+function stationToCanvas(station) {
+    const dx = station.lng - CONFIG.center[0];
+    const dy = station.lat - CONFIG.center[1];
+    return {
+        x: CONFIG.width / 2 + dx / CONFIG.geoScaleX,
+        y: CONFIG.height / 2 - dy / CONFIG.geoScaleY
+    };
+}
+
+// --- UPDATE SIMULATION ---
+function updateSimulation() {
+    // Station emission with bright core
+    STATIONS.forEach(station => {
+        const pos = stationToCanvas(station);
+
+        const radius = 4;        // increased for stronger attraction
+        const strength = 100;    // base deposition
+        const hubStrength = 220; // bright hub
+        const hubRadius = 1;     // core radius
+
+        // normal station influence
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const d2 = dx*dx + dy*dy;
+                if (d2 <= radius*radius) {
+                    const idx = index(pos.x + dx, pos.y + dy);
+                    trailMap[idx] = Math.min(trailMap[idx] + strength * (1 - d2 / (radius*radius)), 255);
+                }
+            }
+        }
+
+        // bright core
+        for (let dy = -hubRadius; dy <= hubRadius; dy++) {
+            for (let dx = -hubRadius; dx <= hubRadius; dx++) {
+                const d2 = dx*dx + dy*dy;
+                if (d2 <= hubRadius*hubRadius) {
+                    const idx = index(pos.x + dx, pos.y + dy);
+                    trailMap[idx] = Math.min(trailMap[idx] + hubStrength * (1 - d2 / (hubRadius*hubRadius)), 255);
+                }
+            }
+        }
+    });
+
+    // Agent movement and trail deposition
+    for (let i = 0; i < CONFIG.agentCount; i++) {
+        const sensorAngles = [0, Math.PI/4, -Math.PI/4, Math.PI/2, -Math.PI/2];
+        const readings = sensorAngles.map(offset => sense(i, offset));
+        const maxVal = Math.max(...readings);
+        const maxIdx = readings.indexOf(maxVal);
+
+        if (maxVal > 0) {
+            if (maxIdx === 1 || maxIdx === 3) agents.angle[i] += CONFIG.turnSpeed;
+            else if (maxIdx === 2 || maxIdx === 4) agents.angle[i] -= CONFIG.turnSpeed;
+        }
+
+        agents.x[i] = (agents.x[i] + Math.cos(agents.angle[i]) + CONFIG.width) % CONFIG.width;
+        agents.y[i] = (agents.y[i] + Math.sin(agents.angle[i]) + CONFIG.height) % CONFIG.height;
+
+        trailMap[index(agents.x[i], agents.y[i])] = Math.min(trailMap[index(agents.x[i], agents.y[i])] + 8, 255);
+    }
+
+    // Decay & update texture
+    for (let i = 0; i < trailMap.length; i++) {
+        trailMap[i] *= CONFIG.decayRate;
+        const v = Math.floor(trailMap[i]);
+        const idx = i*4;
+        displayBuffer[idx] = 50;
+        displayBuffer[idx+1] = v;
+        displayBuffer[idx+2] = 150;
+        displayBuffer[idx+3] = v > 10 ? 180 : 0;
+    }
+}
+
+// --- CUSTOM LAYER ---
+const customLayer = {
+    id: 'physarum-layer',
+    type: 'custom',
+    renderingMode: '3d',
+    onAdd: function(map, gl) {
+        this.camera = new THREE.Camera();
+        this.scene = new THREE.Scene();
+
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: map.getCanvas(),
+            context: gl,
+            antialias: true
+        });
+        this.renderer.autoClear = false;
+
+        this.texture = new THREE.DataTexture(displayBuffer, CONFIG.width, CONFIG.height, THREE.RGBAFormat);
+        this.texture.minFilter = THREE.LinearFilter;
+        this.texture.magFilter = THREE.LinearFilter;
+
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        const material = new THREE.MeshBasicMaterial({ map: this.texture, transparent: true, side: THREE.DoubleSide });
+        this.mesh = new THREE.Mesh(geometry, material);
+
+        const center = maplibregl.MercatorCoordinate.fromLngLat(CONFIG.center, 0);
+        this.mesh.position.set(center.x, center.y, center.z);
+        this.mesh.scale.set(CONFIG.geoScaleX / 2, CONFIG.geoScaleY / 2, 1);
+
+        this.scene.add(this.mesh);
+        initSimulation();
+    },
+    render: function(gl, matrix) {
+        updateSimulation();
+        this.texture.needsUpdate = true;
+
+        this.camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+        this.renderer.resetState();
+        this.renderer.render(this.scene, this.camera);
+
+        map.triggerRepaint();
+
+        const now = performance.now();
+        if (!this.lastTime) this.lastTime = now;
+        if (now - this.lastTime >= 1000) {
+            document.getElementById('fps').innerText = Math.round(1000 / (now - this.lastFrameTime));
+            this.lastTime = now;
+        }
+        this.lastFrameTime = now;
+    }
+};
+
+// --- MAP LOAD ---
+map.on('load', () => {
+    map.addLayer(customLayer);
+    addStationMarkers(map);
+});
+</script>
+</body>
+</html>
