@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,610 +6,258 @@
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 100%;
-        }
+        body { margin:0; padding:0; overflow:hidden; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
 
         #controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10;
-            color: white;
-            font-family: sans-serif;
-            background: rgba(0,0,0,0.85);
-            padding: 15px;
-            border-radius: 8px;
-            pointer-events: none;
-            border: 1px solid #444;
+            position:absolute; top:10px; left:10px; z-index:10; color:white; 
+            font-family:sans-serif; background: rgba(0,0,0,0.85); padding:15px; 
+            border-radius:8px; pointer-events:none; border:1px solid #444;
         }
 
-        #controls button {
-    pointer-events: auto;
-}
+        #controls button { pointer-events:auto; }
 
         h3 {
-            margin: 0 0 10px 0;
+            margin:0 0 10px 0;
             background: linear-gradient(90deg, #ff6600, #00ccff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
+        p { margin:5px 0; font-size:14px; }
 
         .station-marker {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            cursor: pointer;
+            width:14px; height:14px; border-radius:50%; cursor:pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
+        .station-marker:hover { transform:scale(1.4); }
 
-            .station-marker:hover {
-                transform: scale(1.4);
-            }
-
-            .station-marker.fire {
-                background: radial-gradient(circle at 30% 30%, #ffee00, #ff6600);
-                border: 2px solid #ff4400;
-                box-shadow: 0 0 10px #ff6600, 0 0 20px #ff440066;
-            }
-
-                .station-marker.fire:hover {
-                    box-shadow: 0 0 15px #ff4400, 0 0 30px #ff6600;
-                }
-
-            .station-marker.ice {
-                background: radial-gradient(circle at 30% 30%, #ffffff, #00ccff);
-                border: 2px solid #0088ff;
-                box-shadow: 0 0 10px #00ccff, 0 0 20px #0088ff66;
-            }
-
-                .station-marker.ice:hover {
-                    box-shadow: 0 0 15px #00ccff, 0 0 30px #0088ff;
-                }
-
-        .fire-text {
-            color: #ff8800;
+        .station-marker.fire {
+            background: radial-gradient(circle at 30% 30%, #ffee00, #ff6600);
+            border:2px solid #ff4400;
+            box-shadow: 0 0 10px #ff6600, 0 0 20px #ff440066;
+        }
+        .station-marker.fire:hover {
+            box-shadow: 0 0 15px #ff4400, 0 0 30px #ff6600;
         }
 
-        .ice-text {
-            color: #00ccff;
+        .station-marker.ice {
+            background: radial-gradient(circle at 30% 30%, #ffffff, #00ccff);
+            border:2px solid #0088ff;
+            box-shadow: 0 0 10px #00ccff, 0 0 20px #0088ff66;
+        }
+        .station-marker.ice:hover {
+            box-shadow: 0 0 15px #00ccff, 0 0 30px #0088ff;
         }
 
-        .info {
-            color: #888;
-            font-size: 12px;
-            margin-top: 8px;
-        }
+        .fire-text { color:#ff8800; }
+        .ice-text { color:#00ccff; }
+        .info { color:#888; font-size:12px; margin-top:8px; }
+
         #rerun-btn {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 6px;
-    background: linear-gradient(90deg, #ff6600, #00ccff);
-    border: none;
-    color: black;
-    font-weight: bold;
-    border-radius: 6px;
-    cursor: pointer;
-}
-#rerun-btn:hover {
-    filter: brightness(1.2);
-}
-
+            width:100%; margin-bottom:10px; padding:6px;
+            background: linear-gradient(90deg, #ff6600, #00ccff);
+            border:none; color:black; font-weight:bold; border-radius:6px;
+            cursor:pointer;
+        }
+        #rerun-btn:hover { filter:brightness(1.2); }
     </style>
 </head>
 <body>
 
-    <div id="controls">
-        <button id="rerun-btn">▶ Run simulation here</button>
+<div id="controls">
+    <button id="rerun-btn">▶ Run simulation here</button>
+    <h3>🔥 Fire & Ice Physarum ❄️</h3>
+    <p>Resolution: <span id="res-label">0</span></p>
+    <p>FPS: <span id="fps">0</span></p>
+    <p class="fire-text">🔥 Fire stations: <span id="fire-count">0</span></p>
+    <p class="ice-text">❄️ Ice stations: <span id="ice-count">0</span></p>
+    <p class="fire-text" style="margin-top:10px;">● Left-click: add fire</p>
+    <p class="ice-text">● Right-click: add ice</p>
+    <p style="color:#aaa;">● Click marker to remove</p>
+    <p class="info">Fire and ice repel each other!</p>
+</div>
+<div id="map"></div>
 
-        <h3>🔥 Fire & Ice Physarum ❄️</h3>
-        <p>Resolution: <span id="res-label">0</span></p>
-        <p>FPS: <span id="fps">0</span></p>
-        <p class="fire-text">🔥 Fire stations: <span id="fire-count">0</span></p>
-        <p class="ice-text">❄️ Ice stations: <span id="ice-count">0</span></p>
-        <p class="fire-text" style="margin-top: 10px;">● Left-click: add fire</p>
-        <p class="ice-text">● Right-click: add ice</p>
-        <p style="color: #aaa;">● Click marker to remove</p>
-        <p class="info">Fire and ice repel each other!</p>
-    </div>
-    <div id="map"></div>
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+}
+</script>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-            }
-        }
-    </script>
+<script type="module">
+import * as THREE from 'three';
 
-    <script type="module">
-        import * as THREE from 'three';
+const INITIAL_FIRE_STATIONS = [
+    { name:"Hauptbahnhof", lng:13.3695, lat:52.5250 },
+    { name:"Alexanderplatz", lng:13.4119, lat:52.5219 },
+    { name:"Zoo", lng:13.3327, lat:52.5073 },
+    { name:"Ostkreuz", lng:13.4693, lat:52.5030 },
+];
 
-        const INITIAL_FIRE_STATIONS = [
-            { name: "Hauptbahnhof", lng: 13.3695, lat: 52.5250 },
-            { name: "Alexanderplatz", lng: 13.4119, lat: 52.5219 },
-            { name: "Zoo", lng: 13.3327, lat: 52.5073 },
-            { name: "Ostkreuz", lng: 13.4693, lat: 52.5030 },
-        ];
+const INITIAL_ICE_STATIONS = [
+    { name:"Südkreuz", lng:13.3647, lat:52.4756 },
+    { name:"Gesundbrunnen", lng:13.3883, lat:52.5489 },
+    { name:"Potsdamer Platz", lng:13.3762, lat:52.5096 },
+    { name:"Westkreuz", lng:13.2835, lat:52.5010 }
+];
 
-        const INITIAL_ICE_STATIONS = [
-            { name: "Südkreuz", lng: 13.3647, lat: 52.4756 },
-            { name: "Gesundbrunnen", lng: 13.3883, lat: 52.5489 },
-            { name: "Potsdamer Platz", lng: 13.3762, lat: 52.5096 },
-            { name: "Westkreuz", lng: 13.2835, lat: 52.5010 }
-        ];
+// --- Track stations ---
+const stations = { fire: [], ice: [] };
+const markerMap = new Map();
+let markerClicked = false;
 
-        // Track stations by type
-        const stations = {
-            fire: [],
-            ice: []
-        };
-        const markerMap = new Map();
-        let markerClicked = false;
+// --- CONFIG ---
+const CONFIG = {
+    resolutionMultiplier:4.0,
+    baseAgentCount:15000,
+    sensorDist:10,
+    turnSpeed:0.15,
+    repelStrength:0.7,
+    decayRate:0.94,
+    baseWidth:128,
+    baseHeight:96,
+    center:[13.388, 52.517]
+};
+CONFIG.width = Math.floor(CONFIG.baseWidth*CONFIG.resolutionMultiplier);
+CONFIG.height = Math.floor(CONFIG.baseHeight*CONFIG.resolutionMultiplier);
+CONFIG.agentCount = Math.floor(CONFIG.baseAgentCount*CONFIG.resolutionMultiplier);
 
-        document.getElementById('rerun-btn').onclick = () => {
-    resetSimulationToMap();
+const lngSpan=0.25, latSpan=0.12;
+CONFIG.bounds = {
+    west: CONFIG.center[0]-lngSpan/2,
+    east: CONFIG.center[0]+lngSpan/2,
+    south: CONFIG.center[1]-latSpan/2,
+    north: CONFIG.center[1]+latSpan/2
 };
 
+document.getElementById('res-label').innerText = `${CONFIG.width}x${CONFIG.height}`;
 
-        // --- CONFIG ---
-        const CONFIG = {
-            resolutionMultiplier: 4.0,
-            baseAgentCount: 15000,  // Per type
-            sensorDist: 10,
-            turnSpeed: 0.15,
-            repelStrength: 0.7,    // How strongly opposite type repels
-            decayRate: 0.94,
-            baseWidth: 128,
-            baseHeight: 96,
-            center: [13.388, 52.517],
-        };
+// --- AGENTS & TRAILS ---
+const fireAgents = { x:new Float32Array(CONFIG.agentCount), y:new Float32Array(CONFIG.agentCount), angle:new Float32Array(CONFIG.agentCount) };
+const iceAgents = { x:new Float32Array(CONFIG.agentCount), y:new Float32Array(CONFIG.agentCount), angle:new Float32Array(CONFIG.agentCount) };
+const fireTrail = new Float32Array(CONFIG.width*CONFIG.height);
+const iceTrail = new Float32Array(CONFIG.width*CONFIG.height);
+const displayBuffer = new Uint8Array(CONFIG.width*CONFIG.height*4);
 
-        CONFIG.width = Math.floor(CONFIG.baseWidth * CONFIG.resolutionMultiplier);
-        CONFIG.height = Math.floor(CONFIG.baseHeight * CONFIG.resolutionMultiplier);
-        CONFIG.agentCount = Math.floor(CONFIG.baseAgentCount * CONFIG.resolutionMultiplier);
+function initSimulation() {
+    for(let i=0;i<CONFIG.agentCount;i++){
+        fireAgents.x[i]=Math.random()*CONFIG.width;
+        fireAgents.y[i]=Math.random()*CONFIG.height;
+        fireAgents.angle[i]=Math.random()*Math.PI*2;
 
-        const lngSpan = 0.25;
-        const latSpan = 0.12;
-        CONFIG.bounds = {
-            west: CONFIG.center[0] - lngSpan / 2,
-            east: CONFIG.center[0] + lngSpan / 2,
-            south: CONFIG.center[1] - latSpan / 2,
-            north: CONFIG.center[1] + latSpan / 2
-        };
+        iceAgents.x[i]=Math.random()*CONFIG.width;
+        iceAgents.y[i]=Math.random()*CONFIG.height;
+        iceAgents.angle[i]=Math.random()*Math.PI*2;
+    }
+}
 
-        document.getElementById('res-label').innerText = `${CONFIG.width}x${CONFIG.height}`;
+function index(x,y){
+    let px=Math.floor(x+CONFIG.width)%CONFIG.width;
+    let py=Math.floor(y+CONFIG.height)%CONFIG.height;
+    return py*CONFIG.width+px;
+}
 
-        // --- DUAL SIMULATION ---
-        // Fire agents and trail
-        const fireAgents = {
-            x: new Float32Array(CONFIG.agentCount),
-            y: new Float32Array(CONFIG.agentCount),
-            angle: new Float32Array(CONFIG.agentCount)
-        };
-        const fireTrail = new Float32Array(CONFIG.width * CONFIG.height);
+function lngLatToCanvas(lng,lat){
+    const x=(lng-CONFIG.bounds.west)/(CONFIG.bounds.east-CONFIG.bounds.west);
+    const latRad=lat*Math.PI/180;
+    const southRad=CONFIG.bounds.south*Math.PI/180;
+    const northRad=CONFIG.bounds.north*Math.PI/180;
 
-        // Ice agents and trail
-        const iceAgents = {
-            x: new Float32Array(CONFIG.agentCount),
-            y: new Float32Array(CONFIG.agentCount),
-            angle: new Float32Array(CONFIG.agentCount)
-        };
-        const iceTrail = new Float32Array(CONFIG.width * CONFIG.height);
+    const yMerc=Math.log(Math.tan(Math.PI/4+latRad/2));
+    const ySouthMerc=Math.log(Math.tan(Math.PI/4+southRad/2));
+    const yNorthMerc=Math.log(Math.tan(Math.PI/4+northRad/2));
 
-        const displayBuffer = new Uint8Array(CONFIG.width * CONFIG.height * 4);
+    const y=(yMerc-ySouthMerc)/(yNorthMerc-ySouthMerc);
+    return { x:x*CONFIG.width, y:(1-y)*CONFIG.height };
+}
 
-        function initSimulation()
-        {
-            for (let i = 0; i < CONFIG.agentCount; i++)
-            {
-                // Fire agents - start on left side
-                fireAgents.x[i] = Math.random() * CONFIG.width;
-                fireAgents.y[i] = Math.random() * CONFIG.height;
-                fireAgents.angle[i] = Math.random() * Math.PI * 2;
+// --- MAP ---
+const map = new maplibregl.Map({
+    container:'map',
+    style:'https://tiles.openfreemap.org/styles/positron',
+    center: CONFIG.center,
+    zoom:11,
+    antialias:true
+});
+document.getElementById('map').addEventListener('contextmenu', e=>e.preventDefault());
 
-                // Ice agents - start on right side
-                iceAgents.x[i] = Math.random() * CONFIG.width;
-                iceAgents.y[i] = Math.random() * CONFIG.height;
-                iceAgents.angle[i] = Math.random() * Math.PI * 2;
+// --- MARKERS ---
+function createMarker(station,type){
+    const el=document.createElement('div');
+    el.className=`station-marker ${type}`;
+    el.addEventListener('click', e=>{
+        e.stopPropagation();
+        markerClicked=true;
+        removeStation(station,type);
+        setTimeout(()=>{ markerClicked=false; },100);
+    });
+    const marker=new maplibregl.Marker({element:el, anchor:'center'})
+        .setLngLat([station.lng,station.lat])
+        .addTo(map);
+    markerMap.set(station, marker);
+}
+function removeStation(station,type){
+    const marker=markerMap.get(station);
+    if(marker){ marker.remove(); markerMap.delete(station); }
+    const idx=stations[type].indexOf(station);
+    if(idx>-1) stations[type].splice(idx,1);
+    updateStationCount();
+}
+function addStation(lng,lat,type){
+    const station={name:`${type} Station ${stations[type].length+1}`, lng, lat};
+    stations[type].push(station);
+    createMarker(station,type);
+    spawnAgentsAtStation(station,type);
+    boostTrailAtStation(station,type);
+    updateStationCount();
+}
+function spawnAgentsAtStation(station,type){
+    const pos=lngLatToCanvas(station.lng,station.lat);
+    const agents=type==='fire'?fireAgents:iceAgents;
+    const spawnCount=Math.floor(400*CONFIG.resolutionMultiplier);
+    const spawnRadius=3*CONFIG.resolutionMultiplier;
+    for(let i=0;i<spawnCount;i++){
+        const agentIdx=Math.floor(Math.random()*CONFIG.agentCount);
+        const angle=Math.random()*Math.PI*2;
+        const dist=Math.random()*spawnRadius;
+        agents.x[agentIdx]=pos.x+Math.cos(angle)*dist;
+        agents.y[agentIdx]=pos.y+Math.sin(angle)*dist;
+        agents.angle[agentIdx]=angle;
+    }
+}
+function boostTrailAtStation(station,type){
+    const pos=lngLatToCanvas(station.lng,station.lat);
+    const trail=type==='fire'?fireTrail:iceTrail;
+    const radius=8*CONFIG.resolutionMultiplier;
+    for(let dy=-radius;dy<=radius;dy++){
+        for(let dx=-radius;dx<=radius;dx++){
+            const d2=dx*dx+dy*dy;
+            if(d2<=radius*radius){
+                const idx=index(pos.x+dx,pos.y+dy);
+                trail[idx]=Math.min(trail[idx]+200*(1-d2/(radius*radius)),255);
             }
         }
+    }
+}
+function updateStationCount(){
+    document.getElementById('fire-count').innerText=stations.fire.length;
+    document.getElementById('ice-count').innerText=stations.ice.length;
+}
 
-        function index(x, y)
-        {
-            let px = Math.floor(x + CONFIG.width) % CONFIG.width;
-            let py = Math.floor(y + CONFIG.height) % CONFIG.height;
-            return py * CONFIG.width + px;
-        }
+// --- RUN SIM BUTTON ---
+document.getElementById('rerun-btn').onclick=()=>{
+    resetSimulationToMap();
+}
 
-        function sense(agents, i, angleOffset, ownTrail, otherTrail)
-        {
-            const a = agents.angle[i] + angleOffset;
-            const x = agents.x[i] + Math.cos(a) * (CONFIG.sensorDist * CONFIG.resolutionMultiplier);
-            const y = agents.y[i] + Math.sin(a) * (CONFIG.sensorDist * CONFIG.resolutionMultiplier);
-            const idx = index(x, y);
+// --- RESET SIMULATION ---
+function resetSimulationToMap(){
+    const bounds=map.getBounds();
 
-            // Attracted to own trail, repelled by other trail
-            return ownTrail[idx] - otherTrail[idx] * CONFIG.repelStrength;
-        }
-
-        function lngLatToCanvas(lng, lat)
-        {
-            const x = (lng - CONFIG.bounds.west) / (CONFIG.bounds.east - CONFIG.bounds.west);
-
-            const latRad = lat * Math.PI / 180;
-            const southRad = CONFIG.bounds.south * Math.PI / 180;
-            const northRad = CONFIG.bounds.north * Math.PI / 180;
-
-            const yMerc = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
-            const ySouthMerc = Math.log(Math.tan(Math.PI / 4 + southRad / 2));
-            const yNorthMerc = Math.log(Math.tan(Math.PI / 4 + northRad / 2));
-
-            const y = (yMerc - ySouthMerc) / (yNorthMerc - ySouthMerc);
-
-            return {
-                x: x * CONFIG.width,
-                y: (1 - y) * CONFIG.height
-            };
-        }
-
-        const map = new maplibregl.Map({
-            container: 'map',
-            style: 'https://tiles.openfreemap.org/styles/positron',
-            center: CONFIG.center,
-            zoom: 11,
-            antialias: true
-        });
-
-        // Disable context menu on map
-        document.getElementById('map').addEventListener('contextmenu', e => e.preventDefault());
-
-        function createMarker(station, type)
-        {
-            const el = document.createElement('div');
-            el.className = `station-marker ${type}`;
-
-            el.addEventListener('click', (e) =>
-            {
-                e.stopPropagation();
-                markerClicked = true;
-                removeStation(station, type);
-                setTimeout(() => { markerClicked = false; }, 100);
-            });
-
-            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-                .setLngLat([station.lng, station.lat])
-                .addTo(map);
-
-            markerMap.set(station, marker);
-        }
-
-        function removeStation(station, type)
-        {
-            const marker = markerMap.get(station);
-            if (marker)
-            {
-                marker.remove();
-                markerMap.delete(station);
-            }
-            const idx = stations[type].indexOf(station);
-            if (idx > -1)
-            {
-                stations[type].splice(idx, 1);
-            }
-            updateStationCount();
-        }
-
-        function addStation(lng, lat, type)
-        {
-            const station = {
-                name: `${type} Station ${stations[type].length + 1}`,
-                lng,
-                lat
-            };
-            stations[type].push(station);
-            createMarker(station, type);
-
-            spawnAgentsAtStation(station, type);
-            boostTrailAtStation(station, type);
-
-            updateStationCount();
-        }
-
-        function spawnAgentsAtStation(station, type)
-        {
-            const pos = lngLatToCanvas(station.lng, station.lat);
-            const agents = type === 'fire' ? fireAgents : iceAgents;
-            const spawnCount = Math.floor(400 * CONFIG.resolutionMultiplier);
-            const spawnRadius = 3 * CONFIG.resolutionMultiplier;
-
-            for (let i = 0; i < spawnCount; i++)
-            {
-                const agentIdx = Math.floor(Math.random() * CONFIG.agentCount);
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * spawnRadius;
-
-                agents.x[agentIdx] = pos.x + Math.cos(angle) * dist;
-                agents.y[agentIdx] = pos.y + Math.sin(angle) * dist;
-                agents.angle[agentIdx] = angle;
-            }
-        }
-
-        function boostTrailAtStation(station, type)
-        {
-            const pos = lngLatToCanvas(station.lng, station.lat);
-            const trail = type === 'fire' ? fireTrail : iceTrail;
-            const radius = 8 * CONFIG.resolutionMultiplier;
-
-            for (let dy = -radius; dy <= radius; dy++)
-            {
-                for (let dx = -radius; dx <= radius; dx++)
-                {
-                    const d2 = dx * dx + dy * dy;
-                    if (d2 <= radius * radius)
-                    {
-                        const idx = index(pos.x + dx, pos.y + dy);
-                        trail[idx] = Math.min(trail[idx] + 200 * (1 - d2 / (radius * radius)), 255);
-                    }
-                }
-            }
-        }
-
-        function updateStationCount()
-        {
-            document.getElementById('fire-count').innerText = stations.fire.length;
-            document.getElementById('ice-count').innerText = stations.ice.length;
-        }
-
-        // Color functions
-        function getFireColor(intensity)
-        {
-            const t = intensity / 255;
-            let r, g, b;
-
-            if (t < 0.3)
-            {
-                r = Math.floor(80 + t * 500);
-                g = 0;
-                b = 0;
-            } else if (t < 0.6)
-            {
-                const localT = (t - 0.3) / 0.3;
-                r = 255;
-                g = Math.floor(localT * 140);
-                b = 0;
-            } else if (t < 0.85)
-            {
-                const localT = (t - 0.6) / 0.25;
-                r = 255;
-                g = Math.floor(140 + localT * 115);
-                b = Math.floor(localT * 50);
-            } else
-            {
-                const localT = (t - 0.85) / 0.15;
-                r = 255;
-                g = 255;
-                b = Math.floor(50 + localT * 150);
-            }
-
-            return { r: Math.min(255, r), g: Math.min(255, g), b: Math.min(255, b) };
-        }
-
-        function getIceColor(intensity)
-        {
-            const t = intensity / 255;
-            let r, g, b;
-
-            if (t < 0.3)
-            {
-                r = 0;
-                g = Math.floor(30 + t * 200);
-                b = Math.floor(80 + t * 300);
-            } else if (t < 0.6)
-            {
-                const localT = (t - 0.3) / 0.3;
-                r = 0;
-                g = Math.floor(90 + localT * 100);
-                b = Math.floor(170 + localT * 60);
-            } else if (t < 0.85)
-            {
-                const localT = (t - 0.6) / 0.25;
-                r = Math.floor(localT * 100);
-                g = Math.floor(190 + localT * 50);
-                b = 230 + Math.floor(localT * 25);
-            } else
-            {
-                const localT = (t - 0.85) / 0.15;
-                r = Math.floor(100 + localT * 155);
-                g = Math.floor(240 + localT * 15);
-                b = 255;
-            }
-
-            return { r: Math.min(255, r), g: Math.min(255, g), b: Math.min(255, b) };
-        }
-
-        function updateAgents(agents, ownTrail, otherTrail)
-        {
-            for (let i = 0; i < CONFIG.agentCount; i++)
-            {
-                const sensorAngles = [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
-                const readings = sensorAngles.map(offset => sense(agents, i, offset, ownTrail, otherTrail));
-                const maxVal = Math.max(...readings);
-                const maxIdx = readings.indexOf(maxVal);
-
-                if (maxIdx === 1 || maxIdx === 3) agents.angle[i] += CONFIG.turnSpeed;
-                else if (maxIdx === 2 || maxIdx === 4) agents.angle[i] -= CONFIG.turnSpeed;
-
-                agents.x[i] = (agents.x[i] + Math.cos(agents.angle[i]) * CONFIG.resolutionMultiplier + CONFIG.width) % CONFIG.width;
-                agents.y[i] = (agents.y[i] + Math.sin(agents.angle[i]) * CONFIG.resolutionMultiplier + CONFIG.height) % CONFIG.height;
-
-                ownTrail[index(agents.x[i], agents.y[i])] = Math.min(ownTrail[index(agents.x[i], agents.y[i])] + 8, 255);
-            }
-        }
-
-        function emitFromStations(stationList, trail)
-        {
-            stationList.forEach(station =>
-            {
-                const pos = lngLatToCanvas(station.lng, station.lat);
-                const radius = 4 * CONFIG.resolutionMultiplier;
-                const strength = 100;
-
-                for (let dy = -radius; dy <= radius; dy++)
-                {
-                    for (let dx = -radius; dx <= radius; dx++)
-                    {
-                        const d2 = dx * dx + dy * dy;
-                        if (d2 <= radius * radius)
-                        {
-                            const idx = index(pos.x + dx, pos.y + dy);
-                            trail[idx] = Math.min(trail[idx] + strength * (1 - d2 / (radius * radius)), 255);
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateSimulation()
-        {
-            // Emit from stations
-            emitFromStations(stations.fire, fireTrail);
-            emitFromStations(stations.ice, iceTrail);
-
-            // Update agents with repulsion
-            updateAgents(fireAgents, fireTrail, iceTrail);
-            updateAgents(iceAgents, iceTrail, fireTrail);
-
-            // Decay and render
-            for (let i = 0; i < fireTrail.length; i++)
-            {
-                fireTrail[i] *= CONFIG.decayRate;
-                iceTrail[i] *= CONFIG.decayRate;
-
-                const fireV = fireTrail[i];
-                const iceV = iceTrail[i];
-                const idx = i * 4;
-
-                if (fireV > 5 || iceV > 5)
-                {
-                    if (fireV > iceV * 1.5)
-                    {
-                        // Mostly fire
-                        const color = getFireColor(fireV);
-                        displayBuffer[idx] = color.r;
-                        displayBuffer[idx + 1] = color.g;
-                        displayBuffer[idx + 2] = color.b;
-                        displayBuffer[idx + 3] = Math.min(255, fireV * 1.5 + 60);
-                    } else if (iceV > fireV * 1.5)
-                    {
-                        // Mostly ice
-                        const color = getIceColor(iceV);
-                        displayBuffer[idx] = color.r;
-                        displayBuffer[idx + 1] = color.g;
-                        displayBuffer[idx + 2] = color.b;
-                        displayBuffer[idx + 3] = Math.min(255, iceV * 1.5 + 60);
-                    } else
-                    {
-                        // Mix - create purple/white blend at boundaries
-                        const fireColor = getFireColor(fireV);
-                        const iceColor = getIceColor(iceV);
-                        const total = fireV + iceV;
-                        const fireRatio = fireV / total;
-                        const iceRatio = iceV / total;
-
-                        // Blend with extra brightness at collision
-                        const blendBoost = 1.2;
-                        displayBuffer[idx] = Math.min(255, (fireColor.r * fireRatio + iceColor.r * iceRatio) * blendBoost);
-                        displayBuffer[idx + 1] = Math.min(255, (fireColor.g * fireRatio + iceColor.g * iceRatio) * blendBoost);
-                        displayBuffer[idx + 2] = Math.min(255, (fireColor.b * fireRatio + iceColor.b * iceRatio) * blendBoost);
-                        displayBuffer[idx + 3] = Math.min(255, total * 0.8 + 80);
-                    }
-                } else
-                {
-                    displayBuffer[idx] = 0;
-                    displayBuffer[idx + 1] = 0;
-                    displayBuffer[idx + 2] = 0;
-                    displayBuffer[idx + 3] = 0;
-                }
-            }
-        }
-
-        const customLayer = {
-            id: 'physarum-layer',
-            type: 'custom',
-            renderingMode: '3d',
-            onAdd: function (map, gl)
-            {
-                this.camera = new THREE.Camera();
-                this.scene = new THREE.Scene();
-                this.renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
-                this.renderer.autoClear = false;
-
-                this.texture = new THREE.DataTexture(displayBuffer, CONFIG.width, CONFIG.height, THREE.RGBAFormat);
-                this.texture.minFilter = THREE.LinearFilter;
-                this.texture.magFilter = THREE.LinearFilter;
-
-                const sw = maplibregl.MercatorCoordinate.fromLngLat([CONFIG.bounds.west, CONFIG.bounds.south], 0);
-                const ne = maplibregl.MercatorCoordinate.fromLngLat([CONFIG.bounds.east, CONFIG.bounds.north], 0);
-
-                const width = ne.x - sw.x;
-                const height = ne.y - sw.y;
-                const centerX = (sw.x + ne.x) / 2;
-                const centerY = (sw.y + ne.y) / 2;
-
-                const geometry = new THREE.PlaneGeometry(width, -height);
-                const material = new THREE.MeshBasicMaterial({
-                    map: this.texture,
-                    transparent: true,
-                    side: THREE.DoubleSide,
-                    depthWrite: false
-                });
-                this.mesh = new THREE.Mesh(geometry, material);
-                this.mesh.position.set(centerX, centerY, 0);
-
-                this.scene.add(this.mesh);
-                initSimulation();
-            },
-            render: function (gl, matrix)
-            {
-                updateSimulation();
-                this.texture.needsUpdate = true;
-                this.camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
-                this.renderer.resetState();
-                this.renderer.render(this.scene, this.camera);
-                map.triggerRepaint();
-
-                const now = performance.now();
-                if (!this.lastTime) this.lastTime = now;
-                if (now - this.lastTime >= 1000)
-                {
-                    document.getElementById('fps').innerText = Math.round(1000 / (now - this.lastFrameTime));
-                    this.lastTime = now;
-                }
-                this.lastFrameTime = now;
-            }
-        };
-
-        function resetSimulationToMap() {
-    const bounds = map.getBounds();
-
-    // Update simulation bounds
-    CONFIG.bounds = {
+    CONFIG.bounds={
         west: bounds.getWest(),
         east: bounds.getEast(),
         south: bounds.getSouth(),
@@ -621,76 +268,216 @@
     fireTrail.fill(0);
     iceTrail.fill(0);
 
-    // Clear stations & markers
-    stations.fire.length = 0;
-    stations.ice.length = 0;
-    markerMap.forEach(marker => marker.remove());
-    markerMap.clear();
-
+    // Reinit agents
     initSimulation();
+
+    // Seed stations only if inside bounds
+    stations.fire.forEach(station=>{
+        if(station.lng>=CONFIG.bounds.west && station.lng<=CONFIG.bounds.east &&
+           station.lat>=CONFIG.bounds.south && station.lat<=CONFIG.bounds.north){
+            spawnAgentsAtStation(station,'fire');
+            boostTrailAtStation(station,'fire');
+        }
+    });
+    stations.ice.forEach(station=>{
+        if(station.lng>=CONFIG.bounds.west && station.lng<=CONFIG.bounds.east &&
+           station.lat>=CONFIG.bounds.south && station.lat<=CONFIG.bounds.north){
+            spawnAgentsAtStation(station,'ice');
+            boostTrailAtStation(station,'ice');
+        }
+    });
+
     updateStationCount();
 
-        if (customLayer.mesh) {
-    const sw = maplibregl.MercatorCoordinate.fromLngLat(
-        [CONFIG.bounds.west, CONFIG.bounds.south], 0
-    );
-    const ne = maplibregl.MercatorCoordinate.fromLngLat(
-        [CONFIG.bounds.east, CONFIG.bounds.north], 0
-    );
+    // Update 3D mesh
+    if(customLayer.mesh){
+        const sw=maplibregl.MercatorCoordinate.fromLngLat([CONFIG.bounds.west,CONFIG.bounds.south],0);
+        const ne=maplibregl.MercatorCoordinate.fromLngLat([CONFIG.bounds.east,CONFIG.bounds.north],0);
+        const width=ne.x-sw.x;
+        const height=ne.y-sw.y;
 
-    const width = ne.x - sw.x;
-    const height = ne.y - sw.y;
-
-    customLayer.mesh.geometry.dispose();
-    customLayer.mesh.geometry = new THREE.PlaneGeometry(width, -height);
-    customLayer.mesh.position.set(
-        (sw.x + ne.x) / 2,
-        (sw.y + ne.y) / 2,
-        0
-    );
+        customLayer.mesh.geometry.dispose();
+        customLayer.mesh.geometry=new THREE.PlaneGeometry(width,-height);
+        customLayer.mesh.position.set((sw.x+ne.x)/2,(sw.y+ne.y)/2,0);
+    }
 }
 
+// --- CUSTOM LAYER ---
+function sense(agents,i,angleOffset,ownTrail,otherTrail){
+    const a=agents.angle[i]+angleOffset;
+    const x=agents.x[i]+Math.cos(a)*(CONFIG.sensorDist*CONFIG.resolutionMultiplier);
+    const y=agents.y[i]+Math.sin(a)*(CONFIG.sensorDist*CONFIG.resolutionMultiplier);
+    const idx=index(x,y);
+    return ownTrail[idx]-otherTrail[idx]*CONFIG.repelStrength;
 }
 
+function updateAgents(agents,ownTrail,otherTrail){
+    for(let i=0;i<CONFIG.agentCount;i++){
+        const sensorAngles=[0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2];
+        const readings=sensorAngles.map(offset=>sense(agents,i,offset,ownTrail,otherTrail));
+        const maxVal=Math.max(...readings);
+        const maxIdx=readings.indexOf(maxVal);
+        if(maxIdx===1||maxIdx===3) agents.angle[i]+=CONFIG.turnSpeed;
+        else if(maxIdx===2||maxIdx===4) agents.angle[i]-=CONFIG.turnSpeed;
 
-        map.on('load', () =>
-        {
-            map.addLayer(customLayer);
+        agents.x[i]=(agents.x[i]+Math.cos(agents.angle[i])*CONFIG.resolutionMultiplier+CONFIG.width)%CONFIG.width;
+        agents.y[i]=(agents.y[i]+Math.sin(agents.angle[i])*CONFIG.resolutionMultiplier+CONFIG.height)%CONFIG.height;
 
-            // Add initial fire stations
-            INITIAL_FIRE_STATIONS.forEach(station =>
-            {
-                stations.fire.push(station);
-                createMarker(station, 'fire');
-            });
+        ownTrail[index(agents.x[i],agents.y[i])]=Math.min(ownTrail[index(agents.x[i],agents.y[i])]+8,255);
+    }
+}
 
-            // Add initial ice stations
-            INITIAL_ICE_STATIONS.forEach(station =>
-            {
-                stations.ice.push(station);
-                createMarker(station, 'ice');
-            });
-
-            updateStationCount();
-
-            // Left click to add fire station
-            map.on('click', (e) =>
-            {
-                if (!markerClicked)
-                {
-                    addStation(e.lngLat.lng, e.lngLat.lat, 'fire');
+function emitFromStations(stationList,trail){
+    stationList.forEach(station=>{
+        const pos=lngLatToCanvas(station.lng,station.lat);
+        const radius=4*CONFIG.resolutionMultiplier;
+        const strength=100;
+        for(let dy=-radius;dy<=radius;dy++){
+            for(let dx=-radius;dx<=radius;dx++){
+                const d2=dx*dx+dy*dy;
+                if(d2<=radius*radius){
+                    const idx=index(pos.x+dx,pos.y+dy);
+                    trail[idx]=Math.min(trail[idx]+strength*(1-d2/(radius*radius)),255);
                 }
-            });
+            }
+        }
+    });
+}
 
-            // Right click to add ice station
-            map.on('contextmenu', (e) =>
-            {
-                if (!markerClicked)
-                {
-                    addStation(e.lngLat.lng, e.lngLat.lat, 'ice');
-                }
-            });
+function updateSimulation(){
+    emitFromStations(stations.fire,fireTrail);
+    emitFromStations(stations.ice,iceTrail);
+
+    updateAgents(fireAgents,fireTrail,iceTrail);
+    updateAgents(iceAgents,iceTrail,fireTrail);
+
+    for(let i=0;i<fireTrail.length;i++){
+        fireTrail[i]*=CONFIG.decayRate;
+        iceTrail[i]*=CONFIG.decayRate;
+
+        const fireV=fireTrail[i];
+        const iceV=iceTrail[i];
+        const idx=i*4;
+
+        if(fireV>5 || iceV>5){
+            if(fireV>iceV*1.5){
+                const color=getFireColor(fireV);
+                displayBuffer[idx]=color.r;
+                displayBuffer[idx+1]=color.g;
+                displayBuffer[idx+2]=color.b;
+                displayBuffer[idx+3]=Math.min(255,fireV*1.5+60);
+            } else if(iceV>fireV*1.5){
+                const color=getIceColor(iceV);
+                displayBuffer[idx]=color.r;
+                displayBuffer[idx+1]=color.g;
+                displayBuffer[idx+2]=color.b;
+                displayBuffer[idx+3]=Math.min(255,iceV*1.5+60);
+            } else {
+                const fireColor=getFireColor(fireV);
+                const iceColor=getIceColor(iceV);
+                const total=fireV+iceV;
+                const fireRatio=fireV/total;
+                const iceRatio=iceV/total;
+                const blendBoost=1.2;
+                displayBuffer[idx]=Math.min(255,(fireColor.r*fireRatio+iceColor.r*iceRatio)*blendBoost);
+                displayBuffer[idx+1]=Math.min(255,(fireColor.g*fireRatio+iceColor.g*iceRatio)*blendBoost);
+                displayBuffer[idx+2]=Math.min(255,(fireColor.b*fireRatio+iceColor.b*iceRatio)*blendBoost);
+                displayBuffer[idx+3]=Math.min(255,total*0.8+80);
+            }
+        } else {
+            displayBuffer[idx]=0; displayBuffer[idx+1]=0; displayBuffer[idx+2]=0; displayBuffer[idx+3]=0;
+        }
+    }
+}
+
+function getFireColor(intensity){
+    const t=intensity/255;
+    let r,g,b;
+    if(t<0.3){ r=Math.floor(80+t*500); g=0; b=0; }
+    else if(t<0.6){ const lt=(t-0.3)/0.3; r=255; g=Math.floor(lt*140); b=0; }
+    else if(t<0.85){ const lt=(t-0.6)/0.25; r=255; g=Math.floor(140+lt*115); b=Math.floor(lt*50); }
+    else{ const lt=(t-0.85)/0.15; r=255; g=255; b=Math.floor(50+lt*150); }
+    return { r:Math.min(255,r), g:Math.min(255,g), b:Math.min(255,b) };
+}
+function getIceColor(intensity){
+    const t=intensity/255;
+    let r,g,b;
+    if(t<0.3){ r=0; g=Math.floor(30+t*200); b=Math.floor(80+t*300); }
+    else if(t<0.6){ const lt=(t-0.3)/0.3; r=0; g=Math.floor(90+lt*100); b=170+Math.floor(lt*60); }
+    else if(t<0.85){ const lt=(t-0.6)/0.25; r=Math.floor(lt*100); g=Math.floor(190+lt*50); b=230+Math.floor(lt*25); }
+    else{ const lt=(t-0.85)/0.15; r=Math.floor(100+lt*155); g=Math.floor(240+lt*15); b=255; }
+    return { r:Math.min(255,r), g:Math.min(255,g), b:Math.min(255,b) };
+}
+
+// --- CUSTOM THREE LAYER ---
+const customLayer = {
+    id:'physarum-layer',
+    type:'custom',
+    renderingMode:'3d',
+    onAdd:function(map,gl){
+        this.camera=new THREE.Camera();
+        this.scene=new THREE.Scene();
+        this.renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(), context:gl, antialias:true});
+        this.renderer.autoClear=false;
+
+        this.texture=new THREE.DataTexture(displayBuffer, CONFIG.width, CONFIG.height, THREE.RGBAFormat);
+        this.texture.minFilter=THREE.LinearFilter;
+        this.texture.magFilter=THREE.LinearFilter;
+
+        const sw=maplibregl.MercatorCoordinate.fromLngLat([CONFIG.bounds.west,CONFIG.bounds.south],0);
+        const ne=maplibregl.MercatorCoordinate.fromLngLat([CONFIG.bounds.east,CONFIG.bounds.north],0);
+        const width=ne.x-sw.x, height=ne.y-sw.y;
+        const centerX=(sw.x+ne.x)/2, centerY=(sw.y+ne.y)/2;
+
+        const geometry=new THREE.PlaneGeometry(width,-height);
+        const material=new THREE.MeshBasicMaterial({
+            map:this.texture, transparent:true, side:THREE.DoubleSide, depthWrite:false
         });
-    </script>
+        this.mesh=new THREE.Mesh(geometry,material);
+        this.mesh.position.set(centerX,centerY,0);
+        this.scene.add(this.mesh);
+
+        initSimulation();
+    },
+    render:function(gl,matrix){
+        updateSimulation();
+        this.texture.needsUpdate=true;
+        this.camera.projectionMatrix=new THREE.Matrix4().fromArray(matrix);
+        this.renderer.resetState();
+        this.renderer.render(this.scene,this.camera);
+        map.triggerRepaint();
+
+        const now=performance.now();
+        if(!this.lastTime) this.lastTime=now;
+        if(now-this.lastTime>=1000){
+            document.getElementById('fps').innerText=Math.round(1000/(now-this.lastFrameTime));
+            this.lastTime=now;
+        }
+        this.lastFrameTime=now;
+    }
+};
+
+map.on('load', ()=>{
+    map.addLayer(customLayer);
+
+    INITIAL_FIRE_STATIONS.forEach(station=>{
+        stations.fire.push(station);
+        createMarker(station,'fire');
+    });
+    INITIAL_ICE_STATIONS.forEach(station=>{
+        stations.ice.push(station);
+        createMarker(station,'ice');
+    });
+
+    updateStationCount();
+
+    map.on('click', e=>{
+        if(!markerClicked) addStation(e.lngLat.lng,e.lngLat.lat,'fire');
+    });
+    map.on('contextmenu', e=>{
+        if(!markerClicked) addStation(e.lngLat.lng,e.lngLat.lat,'ice');
+    });
+});
+</script>
 </body>
 </html>
